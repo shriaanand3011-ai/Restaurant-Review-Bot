@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Restaurant Review Bot</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      min-height: 100vh;
+      padding: 24px 16px;
+      color: #1f2937;
+    }
+    .container { max-width: 640px; margin: 0 auto; }
+    header { text-align: center; margin-bottom: 32px; }
+    h1 { font-size: 32px; margin-bottom: 8px; }
+    .subtitle { color: #6b7280; font-size: 15px; }
+    .location-status {
+      text-align: center;
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 12px;
+    }
+    .location-status.active { color: #059669; }
+    .search-wrapper {
+      position: relative;
+      margin-bottom: 24px;
+    }
+    .search-box {
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      display: flex;
+      gap: 10px;
+    }
+    input {
+      flex: 1;
+      border: 2px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 16px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus { border-color: #f59e0b; }
+    button {
+      background: #f59e0b;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 24px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover:not(:disabled) { background: #d97706; }
+    button:disabled { background: #9ca3af; cursor: not-allowed; }
+    .suggestions {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 20px;
+      right: 20px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      max-height: 320px;
+      overflow-y: auto;
+      display: none;
+      z-index: 10;
+    }
+    .suggestions.visible { display: block; }
+    .suggestion {
+      padding: 14px 18px;
+      cursor: pointer;
+      border-bottom: 1px solid #f3f4f6;
+      transition: background 0.15s;
+    }
+    .suggestion:last-child { border-bottom: none; }
+    .suggestion:hover { background: #fef3c7; }
+    .suggestion-main {
+      font-weight: 600;
+      font-size: 15px;
+      margin-bottom: 2px;
+    }
+    .suggestion-sub {
+      font-size: 13px;
+      color: #6b7280;
+    }
+    .result {
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      display: none;
+    }
+    .result.visible { display: block; }
+    .place-name { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .address { color: #6b7280; font-size: 14px; margin-bottom: 8px; }
+    .rating {
+      display: inline-block;
+      background: #fef3c7;
+      color: #92400e;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    .cuisine-chip {
+      display: inline-block;
+      background: #ecfdf5;
+      color: #065f46;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-left: 8px;
+      margin-bottom: 20px;
+    }
+    .analysis {
+      white-space: pre-wrap;
+      line-height: 1.7;
+      font-size: 15px;
+      border-top: 1px solid #f3f4f6;
+      padding-top: 20px;
+    }
+    .error {
+      background: #fef2f2;
+      color: #991b1b;
+      padding: 14px 18px;
+      border-radius: 10px;
+      border: 1px solid #fecaca;
+    }
+    .loading {
+      text-align: center;
+      padding: 40px 20px;
+      color: #6b7280;
+    }
+    .spinner {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border: 3px solid #fde68a;
+      border-top-color: #f59e0b;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    footer { text-align: center; margin-top: 32px; color: #6b7280; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🍽️ Restaurant Review Bot</h1>
+      <p class="subtitle">Find any restaurant — get a summary and top dishes to try</p>
+    </header>
+
+    <div class="location-status" id="locationStatus">📍 Detecting your location...</div>
+
+    <div class="search-wrapper">
+      <div class="search-box">
+        <input
+          type="text"
+          id="restaurant"
+          placeholder="Start typing a restaurant, cafe, bar..."
+          autocomplete="off"
+        />
+        <button id="searchBtn" onclick="search()">Search</button>
+      </div>
+      <div class="suggestions" id="suggestions"></div>
+    </div>
+
+    <div class="result" id="result"></div>
+
+    <footer>Powered by Google Maps + Gemini</footer>
+  </div>
+
+  <script>
+    const input = document.getElementById("restaurant");
+    const btn = document.getElementById("searchBtn");
+    const result = document.getElementById("result");
+    const suggestionsBox = document.getElementById("suggestions");
+    const locationStatus = document.getElementById("locationStatus");
+
+    let userLat = null;
+    let userLng = null;
+    let debounceTimer = null;
+    let selectedPlaceId = null;
+
+    // Try to get user location
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          userLat = pos.coords.latitude;
+          userLng = pos.coords.longitude;
+          locationStatus.textContent = "📍 Showing nearby results first";
+          locationStatus.className = "location-status active";
+        },
+        () => {
+          locationStatus.textContent = "📍 Location off — global results";
+        }
+      );
+    } else {
+      locationStatus.textContent = "📍 Location not supported — global results";
+    }
+
+    // Autocomplete as user types (debounced — only after 300ms of no typing)
+    input.addEventListener("input", () => {
+      selectedPlaceId = null; // user typing again means previous selection is invalid
+      clearTimeout(debounceTimer);
+      const query = input.value.trim();
+      if (query.length < 2) {
+        suggestionsBox.classList.remove("visible");
+        return;
+      }
+      debounceTimer = setTimeout(() => fetchSuggestions(query), 300);
+    });
+
+    input.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        suggestionsBox.classList.remove("visible");
+        search();
+      }
+    });
+
+    // Hide dropdown when clicking outside
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".search-wrapper")) {
+        suggestionsBox.classList.remove("visible");
+      }
+    });
+
+    async function fetchSuggestions(query) {
+      try {
+        const res = await fetch("/autocomplete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query, lat: userLat, lng: userLng }),
+        });
+        const data = await res.json();
+        renderSuggestions(data.predictions || []);
+      } catch (err) {
+        console.error("Autocomplete failed:", err);
+      }
+    }
+
+    function renderSuggestions(predictions) {
+      if (!predictions.length) {
+        suggestionsBox.classList.remove("visible");
+        return;
+      }
+      suggestionsBox.innerHTML = predictions
+        .map(
+          (p) => `
+        <div class="suggestion" onclick="selectSuggestion('${p.place_id}', '${escapeQuotes(p.main_text)}', '${escapeQuotes(p.secondary_text)}')">
+          <div class="suggestion-main">📍 ${p.main_text}</div>
+          <div class="suggestion-sub">${p.secondary_text}</div>
+        </div>`
+        )
+        .join("");
+      suggestionsBox.classList.add("visible");
+    }
+
+    function escapeQuotes(s) {
+      return (s || "").replace(/'/g, "\\'").replace(/"/g, '\\"');
+    }
+
+    function selectSuggestion(placeId, mainText, secondaryText) {
+      selectedPlaceId = placeId;
+      input.value = `${mainText}, ${secondaryText}`;
+      suggestionsBox.classList.remove("visible");
+      search();
+    }
+
+    async function search() {
+      const name = input.value.trim();
+      if (!name) return;
+
+      btn.disabled = true;
+      result.className = "result visible";
+      result.innerHTML = '<div class="loading"><div class="spinner"></div><div>Searching reviews and analyzing dishes...</div></div>';
+
+      try {
+        const res = await fetch("/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, place_id: selectedPlaceId }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          result.innerHTML = `<div class="error">${data.error || "Something went wrong"}</div>`;
+        } else {
+          const cuisineHtml = (data.cuisine_tags && data.cuisine_tags.length)
+            ? `<span class="cuisine-chip">🍴 ${data.cuisine_tags.slice(0, 2).join(" · ")}</span>`
+            : "";
+          result.innerHTML = `
+            <div class="place-name">${data.name}</div>
+            <div class="address">${data.address || ""}</div>
+            <div>
+              <span class="rating">⭐ ${data.rating || "—"} · ${data.total_reviews || 0} reviews</span>
+              ${cuisineHtml}
+            </div>
+            <div class="analysis">${data.analysis}</div>
+          `;
+        }
+      } catch (err) {
+        result.innerHTML = `<div class="error">Network error: ${err.message}</div>`;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

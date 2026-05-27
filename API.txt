@@ -1,0 +1,4 @@
+Google places API: AIzaSyCz00zMZN6Zg-5mKttPKYXa0KsWo4yL_oM
+Gemini API: AIzaSyCqOWZSh9uADjHZMNjQ6mwelUsBrug3pyw
+
+c:\Users\shria\rest-bot\py_rest_venv\Scripts\activate

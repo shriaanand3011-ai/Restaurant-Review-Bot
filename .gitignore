@@ -1,0 +1,4 @@
+py_rest_venv/
+.env
+__pycache__/
+*.pyc
