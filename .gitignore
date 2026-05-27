@@ -1,4 +1,9 @@
-py_rest_venv/
 .env
+venv/
+py_rest_venv/
 __pycache__/
 *.pyc
+API.txt
+*.key
+*.secret
+notes.txt
